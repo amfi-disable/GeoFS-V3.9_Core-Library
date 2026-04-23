@@ -1,4 +1,4 @@
-# 🛠️ GeoFS Core Library (v3.9)
+# 🛠️ GeoFS-V3.9_Core-Library
 
 **GeoFS-V3.9_Core-Library** is the foundational logic layer for the AwesomeOddEven extension suite. It abstracts the complex GeoFS internals into a clean, reliable API, allowing you to focus on building features rather than fighting the simulator's DOM and initialization timing.
 
