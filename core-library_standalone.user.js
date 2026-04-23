@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         GeoFS Core Library
+// @name         GeoFS-V3.9_Core-Library
 // @namespace    http://tampermonkey.net/
 // @version      1.0.0
 // @description  Shared logic and utilities for standalone GeoFS addons.
@@ -11,7 +11,7 @@
 
 (function() {
     'use strict';
-    const libUrl = 'https://raw.githack.com/AwesomeOddEven-NightKeys-LunarBlink/GeoFS-Core-Library/main/src/library.js';
+    const libUrl = 'https://raw.githack.com/AwesomeOddEven-NightKeys-LunarBlink/GeoFS-V3.9_Core-Library/main/library.js';
 
     function injectLibrary() {
         if (window.SafeInit) return; // Already loaded
