@@ -11,7 +11,7 @@
 
 (function() {
     'use strict';
-    const libUrl = 'https://raw.githack.com/AwesomeOddEven-NightKeys-LunarBlink/GeoFS-V3.9_Core-Library/main/library.js';
+    const libUrl = 'https://raw.githack.com/AwesomeOddEven-NightKeys-LunarBlink/GeoFS-V3.9_Core-Library/blob/main/core-library.js';
 
     function injectLibrary() {
         if (window.SafeInit) return; // Already loaded
