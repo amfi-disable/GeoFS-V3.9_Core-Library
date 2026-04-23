@@ -1,5 +1,5 @@
 /**
- * GeoFS Core Library
+ * GeoFS-V3.9_Core-Library
  * Common utilities and math functions shared across the GeoFS Addon-Pack ecosystem.
  */
 
