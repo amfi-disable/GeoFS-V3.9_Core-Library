@@ -16,11 +16,12 @@
      * Ensures that module initialization errors don't crash the entire suite.
      */
     window.SafeInit = function(moduleName, func) {
-        console.info(`GeoFS Core: [MODULE] Initializing ${moduleName}...`);
+        console.info(`[GeoFS-V3.9_Core-Library] [MODULE] Initializing: ${moduleName}`);
         try {
             func();
+            console.log(`[GeoFS-V3.9_Core-Library] [MODULE SUCCESS] ${moduleName} is now active.`);
         } catch (e) {
-            console.error(`GeoFS Core: [MODULE ERROR] Failed to initialize ${moduleName}:`, e);
+            console.error(`[GeoFS-V3.9_Core-Library] [MODULE ERROR] Failed to initialize ${moduleName}:`, e);
         }
     };
 
@@ -29,6 +30,7 @@
      * Universal utility to make any DOM element draggable within GeoFS.
      */
     window.initAddonDraggable = function(card, legacyKey) {
+        console.log(`[GeoFS-V3.9_Core-Library] Enabling draggable behavior for: ${card ? card.id : 'unknown element'}`);
         if (!card) return;
         let isDragging = false, dragMoved = false, dragOffsetX = 0, dragOffsetY = 0;
         const storageKey = legacyKey || `geofs-addon-pos-${card.id}`;
@@ -107,5 +109,5 @@
         });
     });
 
-    console.log('GeoFS Core: [Library] Loaded universal helpers.');
+    console.log('[GeoFS-V3.9_Core-Library] Universal flight helpers and SafeInit system active.');
 })();
