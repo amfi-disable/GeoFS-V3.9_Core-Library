@@ -33,13 +33,13 @@
         if (!globalThis.hudProVisible) globalThis.hudProVisible = true;
         if (globalThis.hudProMinimized === undefined) globalThis.hudProMinimized = false;
 
-        // Inject Core HUD CSS if missing
+        // Inject Core HUD CSS
         if (!document.getElementById('hudModularStyles')) {
             const style = document.createElement('style');
             style.id = 'hudModularStyles';
             style.textContent = `
                 .unified-tabs { display: flex; width: 100%; gap: 2px; margin-bottom: 5px; }
-                .unified-tab { flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 10px; padding: 5px 2px; cursor: pointer; transition: all 0.2s; font-family: sans-serif; font-weight: bold; text-transform: uppercase; }
+                .unified-tab { flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 10px; padding: 5px 2px; cursor: pointer; transition: all 0.2s; font-family: sans-serif; font-weight: bold; text-transform: uppercase; border-radius: 4px; }
                 .unified-tab:hover { background: rgba(255,255,255,0.2); }
                 .unified-tab.active { background: rgba(100,200,255,0.3); border-color: #64c8ff; color: #64c8ff; }
                 .unified-content { display: none; }
@@ -50,6 +50,27 @@
             document.head.appendChild(style);
         }
 
+        // 1. Ensure Panel exists
+        let panel = document.getElementById('flightDataDisplay');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'flightDataDisplay';
+            document.body.appendChild(panel);
+            console.log("[HUD Shared] Base panel created.");
+        }
+
+        // 2. Ensure Inner Structure exists (tabs container and handle)
+        if (!document.getElementById('hud-unified-tabs')) {
+            panel.innerHTML = `
+                <div id="masterCaution" style="display:none; grid-column: 1 / -1; background: #ef4444; color: #fff; text-align: center; font-weight: 900; padding: 4px; border-radius: 6px; margin-bottom: 8px; animation: cautionPulse 1s infinite; letter-spacing: 2px; font-size: 10px; border: 1px solid #fff;">MASTER CAUTION</div>
+                <div class="hud-drag-handle" style="font-size: 9px; letter-spacing: 2px; color: rgba(100,200,255,0.6); padding: 2px 0 5px 0; cursor: move;">GEOFS HUD PRO v3.9</div>
+                <div class="unified-tabs" id="hud-unified-tabs"></div>
+            ` + panel.innerHTML;
+            if (window.initAddonDraggable) window.initAddonDraggable(panel, 'geofs-addonpack-hud-pos');
+            console.log("[HUD Shared] Internal structure initialized.");
+        }
+
+        // 3. Ensure Minimize Button exists
         if (!document.getElementById('hudMinimizeBtn')) {
             const btn = document.createElement('div');
             btn.id = 'hudMinimizeBtn';
@@ -65,20 +86,10 @@
             };
             document.body.appendChild(btn);
             if (window.initAddonDraggable) window.initAddonDraggable(btn, 'geofs-addonpack-hud-icon-pos');
+            console.log("[HUD Shared] Minimize button created.");
         }
 
-        if (!document.getElementById('flightDataDisplay')) {
-            const panel = document.createElement('div');
-            panel.id = 'flightDataDisplay';
-            panel.innerHTML = `
-                <div id="masterCaution" style="display:none; grid-column: 1 / -1; background: #ef4444; color: #fff; text-align: center; font-weight: 900; padding: 4px; border-radius: 6px; margin-bottom: 8px; animation: cautionPulse 1s infinite; letter-spacing: 2px; font-size: 10px; border: 1px solid #fff;">MASTER CAUTION</div>
-                <div class="hud-drag-handle" style="font-size: 9px; letter-spacing: 2px; color: rgba(100,200,255,0.6);">GEOFS HUD PRO v3.9</div>
-                <div class="unified-tabs" id="hud-unified-tabs"></div>
-            `;
-            document.body.appendChild(panel);
-            if (window.initAddonDraggable) window.initAddonDraggable(panel, 'geofs-addonpack-hud-pos');
-        }
-
+        // 4. Ensure Switch Logic exists
         if (!window.switchHUDProTab) {
             window.switchHUDProTab = function(activeTabId) {
                 globalThis.activeHudProTab = activeTabId;
@@ -97,26 +108,33 @@
             };
         }
 
+        // 5. Visibility Loop
         if (!window._hudVisibilityLoop) {
             window._hudVisibilityLoop = setInterval(() => {
                 const btn = document.getElementById('hudMinimizeBtn');
-                const panel = document.getElementById('flightDataDisplay');
-                if (!btn || !panel) return;
+                const p = document.getElementById('flightDataDisplay');
+                if (!btn || !p) return;
                 const isVisible = globalThis.hudProVisible !== false;
                 const isMinimized = globalThis.hudProMinimized === true;
                 const isPaused = typeof geofs !== 'undefined' && geofs.isPaused && geofs.isPaused();
                 btn.style.display = isVisible ? 'flex' : 'none';
-                if (!isVisible || isMinimized || isPaused) panel.style.display = 'none';
-                else panel.style.display = 'grid';
+                if (!isVisible || isMinimized || isPaused) p.style.display = 'none';
+                else p.style.display = 'grid';
             }, 100);
         }
     };
 
     window.registerHUDTab = function(tabId, label, contentHTML, isGrid) {
+        console.log(`[HUD Shared] Attempting to register tab: ${tabId}`);
         window.ensureSharedHUD();
+        
         const tabsContainer = document.getElementById('hud-unified-tabs');
-        if (!tabsContainer) return;
+        if (!tabsContainer) {
+            console.error(`[HUD Shared] FAILED to register tab ${tabId}: Container not found!`);
+            return;
+        }
 
+        // Register Button
         if (!document.getElementById(`tab-btn-${tabId}`)) {
             const btn = document.createElement('button');
             btn.id = `tab-btn-${tabId}`;
@@ -126,9 +144,10 @@
             btn.style.order = tabOrder[tabId] || 99;
             btn.onclick = () => window.switchHUDProTab(tabId);
             tabsContainer.appendChild(btn);
-            console.log(`[HUD Shared] Registered tab: ${tabId}`);
+            console.log(`[HUD Shared] REGISTERED button for: ${tabId}`);
         }
 
+        // Register Content
         const panel = document.getElementById('flightDataDisplay');
         if (!document.getElementById(`tab-content-${tabId}`)) {
             const content = document.createElement('div');
@@ -136,36 +155,34 @@
             content.className = `unified-content ${isGrid ? 'unified-grid' : ''}`;
             content.innerHTML = contentHTML;
             panel.appendChild(content);
+            console.log(`[HUD Shared] REGISTERED content for: ${tabId}`);
         }
 
+        // Default activation logic
         setTimeout(() => {
             const tabs = Array.from(document.querySelectorAll('#hud-unified-tabs .unified-tab'));
-            tabs.sort((a, b) => parseInt(a.style.order) - parseInt(b.style.order));
+            tabs.sort((a, b) => (parseInt(a.style.order) || 99) - (parseInt(b.style.order) || 99));
             const firstTab = tabs[0];
             if (firstTab && !document.querySelector('.unified-tab.active')) {
-                window.switchHUDProTab(firstTab.id.replace('tab-btn-', ''));
+                const idToSwitch = firstTab.id.replace('tab-btn-', '');
+                console.log(`[HUD Shared] Auto-switching to first tab: ${idToSwitch}`);
+                window.switchHUDProTab(idToSwitch);
             }
-        }, 500);
+        }, 1000);
     };
 
     window.hudCell = function(label, value, warnClass, idClass) { 
         return `<div class="hud-cell"><span class="hud-label">${label}</span><span class="hud-value ${idClass || ''} ${warnClass || ''}">${value}</span></div>`; 
     };
 
-    /**
-     * initAddonDraggable
-     * Universal utility to make any DOM element draggable within GeoFS.
-     */
     window.initAddonDraggable = function(card, legacyKey) {
-        console.log(`[GeoFS-V3.9_Core-Library] Enabling draggable behavior for: ${card ? card.id : 'unknown element'}`);
         if (!card) return;
         let isDragging = false, dragMoved = false, dragOffsetX = 0, dragOffsetY = 0;
         const storageKey = legacyKey || `geofs-addon-pos-${card.id}`;
 
         card.addEventListener('mousedown', (e) => {
             if (['BUTTON', 'INPUT', 'A', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
-            isDragging = true;
-            dragMoved = false;
+            isDragging = true; dragMoved = false;
             dragOffsetX = e.clientX - card.getBoundingClientRect().left;
             dragOffsetY = e.clientY - card.getBoundingClientRect().top;
             card.style.cursor = 'grabbing';
@@ -178,60 +195,42 @@
             dragMoved = true;
             let newX = e.clientX - dragOffsetX;
             let newY = e.clientY - dragOffsetY;
-            if (newY < 0) newY = 0;
-            if (newX < 0) newX = 0;
+            if (newY < 0) newY = 0; if (newX < 0) newX = 0;
             const maxX = window.innerWidth - card.offsetWidth;
             const maxY = window.innerHeight - card.offsetHeight;
-            if (newX > maxX) newX = maxX;
-            if (newY > maxY) newY = maxY;
-            card.style.left = newX + 'px';
-            card.style.top = newY + 'px';
-            card.style.bottom = 'auto';
-            card.style.right = 'auto';
-            card.style.transform = 'none';
+            if (newX > maxX) newX = maxX; if (newY > maxY) newY = maxY;
+            card.style.left = newX + 'px'; card.style.top = newY + 'px';
+            card.style.bottom = 'auto'; card.style.right = 'auto'; card.style.transform = 'none';
         });
 
         document.addEventListener('mouseup', () => {
             if (!isDragging) return;
-            isDragging = false;
-            card.style.cursor = 'default';
+            isDragging = false; card.style.cursor = 'default';
             card.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.15), opacity 0.3s ease';
             if (dragMoved) {
-                localStorage.setItem(storageKey, JSON.stringify({
-                    left: card.style.left,
-                    top: card.style.top
-                }));
+                localStorage.setItem(storageKey, JSON.stringify({ left: card.style.left, top: card.style.top }));
             }
         });
 
-        // Load saved position
         const saved = localStorage.getItem(storageKey);
         if (saved) {
             try {
                 const pos = JSON.parse(saved);
                 if (pos.left && pos.top) {
-                    card.style.left = pos.left;
-                    card.style.top = pos.top;
-                    card.style.bottom = 'auto';
-                    card.style.right = 'auto';
-                    card.style.transform = 'none';
+                    card.style.left = pos.left; card.style.top = pos.top;
+                    card.style.bottom = 'auto'; card.style.right = 'auto'; card.style.transform = 'none';
                 }
             } catch (err) {}
         }
     };
 
-    // Handle window resize for all draggable elements
     window.addEventListener('resize', () => {
         document.querySelectorAll('.addonpack-card, #flightDataDisplay').forEach(card => {
-            if (card.classList.contains('active') || card.style.display === 'flex' || card.style.display === 'grid') {
+            if (card.style.display === 'flex' || card.style.display === 'grid') {
                 const maxX = window.innerWidth - card.offsetWidth;
                 const maxY = window.innerHeight - card.offsetHeight;
-                let currentX = card.offsetLeft;
-                let currentY = card.offsetTop;
-                if (currentX > maxX || currentY > maxY || currentX < 0 || currentY < 0) {
-                    card.style.left = Math.max(0, Math.min(currentX, maxX)) + 'px';
-                    card.style.top = Math.max(0, Math.min(currentY, maxY)) + 'px';
-                }
+                card.style.left = Math.max(0, Math.min(card.offsetLeft, maxX)) + 'px';
+                card.style.top = Math.max(0, Math.min(card.offsetTop, maxY)) + 'px';
             }
         });
     });
