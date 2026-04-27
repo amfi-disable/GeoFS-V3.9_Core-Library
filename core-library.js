@@ -1,7 +1,6 @@
 /**
  * GeoFS-V3.9_Core-Library
  * Common utilities and math functions shared across the GeoFS Addon-Pack ecosystem.
- * Hardened V2 - Fixed DOM fragmentation and race conditions.
  */
 
 (function() {
