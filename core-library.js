@@ -1,6 +1,7 @@
 /**
  * GeoFS-V3.9_Core-Library
  * Common utilities and math functions shared across the GeoFS Addon-Pack ecosystem.
+ * Hardened V2 - Fixed DOM fragmentation and race conditions.
  */
 
 (function() {
@@ -46,6 +47,12 @@
                 .unified-content.active { display: block; }
                 .unified-content.unified-grid.active { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; }
                 #flightDataDisplay.hud-minimized { display: none !important; }
+                .hud-cell { display: flex; flex-direction: column; }
+                .hud-label { font-size: 9px; color: rgba(255,255,255,0.5); text-transform: uppercase; }
+                .hud-value { font-size: 14px; font-weight: bold; color: #fff; }
+                .hud-value.highlight { color: #64c8ff; }
+                .hud-section-header { font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 2px; }
+                .hud-section-header.full-width { grid-column: 1 / -1; }
             `;
             document.head.appendChild(style);
         }
@@ -60,12 +67,18 @@
         }
 
         // 2. Ensure Inner Structure exists (tabs container and handle)
+        // Hardened: Avoid innerHTML += which destroys event listeners
         if (!document.getElementById('hud-unified-tabs')) {
-            panel.innerHTML = `
-                <div id="masterCaution" style="display:none; grid-column: 1 / -1; background: #ef4444; color: #fff; text-align: center; font-weight: 900; padding: 4px; border-radius: 6px; margin-bottom: 8px; animation: cautionPulse 1s infinite; letter-spacing: 2px; font-size: 10px; border: 1px solid #fff;">MASTER CAUTION</div>
+            const structure = document.createElement('div');
+            structure.innerHTML = `
+                <div id="masterCaution" style="display:none; background: #ef4444; color: #fff; text-align: center; font-weight: 900; padding: 4px; border-radius: 6px; margin-bottom: 8px; letter-spacing: 2px; font-size: 10px; border: 1px solid #fff;">MASTER CAUTION</div>
                 <div class="hud-drag-handle" style="font-size: 9px; letter-spacing: 2px; color: rgba(100,200,255,0.6); padding: 2px 0 5px 0; cursor: move;">GEOFS HUD PRO v3.9</div>
                 <div class="unified-tabs" id="hud-unified-tabs"></div>
-            ` + panel.innerHTML;
+            `;
+            // Prepend the structure to ensure it's at the top, but after the handle
+            while (structure.firstChild) {
+                panel.insertBefore(structure.firstChild, panel.firstChild);
+            }
             if (window.initAddonDraggable) window.initAddonDraggable(panel, 'geofs-addonpack-hud-pos');
             console.log("[HUD Shared] Internal structure initialized.");
         }
@@ -76,7 +89,8 @@
             btn.id = 'hudMinimizeBtn';
             btn.innerHTML = '▣';
             btn.title = 'Toggle Info Display';
-            btn.style.left = '0px'; 
+            btn.style.cssText = "position: fixed; z-index: 10001; background: rgba(0,0,0,0.5); color: #fff; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; backdrop-filter: blur(5px);";
+            btn.style.left = '10px'; 
             btn.style.top = '50%'; 
             btn.style.transform = 'translateY(-50%)';
             btn.onclick = () => {
@@ -92,17 +106,23 @@
         // 4. Ensure Switch Logic exists
         if (!window.switchHUDProTab) {
             window.switchHUDProTab = function(activeTabId) {
+                console.log(`[HUD Shared] Switching to tab: ${activeTabId}`);
                 globalThis.activeHudProTab = activeTabId;
-                document.querySelectorAll('#flightDataDisplay .unified-tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('#flightDataDisplay .unified-content').forEach(c => c.classList.remove('active'));
+                
+                const panel = document.getElementById('flightDataDisplay');
+                if (!panel) return;
+
+                panel.querySelectorAll('.unified-tab').forEach(t => t.classList.remove('active'));
+                panel.querySelectorAll('.unified-content').forEach(c => c.classList.remove('active'));
                 
                 const tabBtn = document.getElementById(`tab-btn-${activeTabId}`);
                 const tabContent = document.getElementById(`tab-content-${activeTabId}`);
+                
                 if (tabBtn) tabBtn.classList.add('active');
                 if (tabContent) tabContent.classList.add('active');
                 
                 globalThis.hudProMinimized = false;
-                document.getElementById('flightDataDisplay')?.classList.remove('hud-minimized');
+                panel.classList.remove('hud-minimized');
                 const btn = document.getElementById('hudMinimizeBtn');
                 if (btn) btn.innerHTML = '▣';
             };
@@ -158,17 +178,22 @@
             console.log(`[HUD Shared] REGISTERED content for: ${tabId}`);
         }
 
-        // Default activation logic
-        setTimeout(() => {
+        // Auto-switch to highest priority tab after initialization
+        // We use a small delay to allow multiple tabs to register
+        clearTimeout(window._hudAutoSwitchTimer);
+        window._hudAutoSwitchTimer = setTimeout(() => {
             const tabs = Array.from(document.querySelectorAll('#hud-unified-tabs .unified-tab'));
+            if (tabs.length === 0) return;
+            
             tabs.sort((a, b) => (parseInt(a.style.order) || 99) - (parseInt(b.style.order) || 99));
-            const firstTab = tabs[0];
-            if (firstTab && !document.querySelector('.unified-tab.active')) {
-                const idToSwitch = firstTab.id.replace('tab-btn-', '');
-                console.log(`[HUD Shared] Auto-switching to first tab: ${idToSwitch}`);
+            
+            // Only switch if no tab is currently active
+            if (!document.querySelector('.unified-tab.active')) {
+                const idToSwitch = tabs[0].id.replace('tab-btn-', '');
+                console.log(`[HUD Shared] Initial auto-switch to: ${idToSwitch}`);
                 window.switchHUDProTab(idToSwitch);
             }
-        }, 1000);
+        }, 500);
     };
 
     window.hudCell = function(label, value, warnClass, idClass) { 
@@ -179,6 +204,17 @@
         if (!card) return;
         let isDragging = false, dragMoved = false, dragOffsetX = 0, dragOffsetY = 0;
         const storageKey = legacyKey || `geofs-addon-pos-${card.id}`;
+
+        // Load saved position
+        const savedPos = localStorage.getItem(storageKey);
+        if (savedPos) {
+            const {left, top} = JSON.parse(savedPos);
+            card.style.left = left;
+            card.style.top = top;
+            card.style.position = 'fixed';
+            card.style.right = 'auto';
+            card.style.bottom = 'auto';
+        }
 
         card.addEventListener('mousedown', (e) => {
             if (['BUTTON', 'INPUT', 'A', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
@@ -199,41 +235,22 @@
             const maxX = window.innerWidth - card.offsetWidth;
             const maxY = window.innerHeight - card.offsetHeight;
             if (newX > maxX) newX = maxX; if (newY > maxY) newY = maxY;
-            card.style.left = newX + 'px'; card.style.top = newY + 'px';
-            card.style.bottom = 'auto'; card.style.right = 'auto'; card.style.transform = 'none';
+            card.style.left = newX + 'px';
+            card.style.top = newY + 'px';
+            card.style.position = 'fixed';
+            card.style.right = 'auto';
+            card.style.bottom = 'auto';
         });
 
         document.addEventListener('mouseup', () => {
-            if (!isDragging) return;
-            isDragging = false; card.style.cursor = 'default';
-            card.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.15), opacity 0.3s ease';
-            if (dragMoved) {
-                localStorage.setItem(storageKey, JSON.stringify({ left: card.style.left, top: card.style.top }));
+            if (isDragging) {
+                isDragging = false;
+                card.style.cursor = '';
+                card.style.transition = '';
+                localStorage.setItem(storageKey, JSON.stringify({left: card.style.left, top: card.style.top}));
             }
         });
-
-        const saved = localStorage.getItem(storageKey);
-        if (saved) {
-            try {
-                const pos = JSON.parse(saved);
-                if (pos.left && pos.top) {
-                    card.style.left = pos.left; card.style.top = pos.top;
-                    card.style.bottom = 'auto'; card.style.right = 'auto'; card.style.transform = 'none';
-                }
-            } catch (err) {}
-        }
     };
 
-    window.addEventListener('resize', () => {
-        document.querySelectorAll('.addonpack-card, #flightDataDisplay').forEach(card => {
-            if (card.style.display === 'flex' || card.style.display === 'grid') {
-                const maxX = window.innerWidth - card.offsetWidth;
-                const maxY = window.innerHeight - card.offsetHeight;
-                card.style.left = Math.max(0, Math.min(card.offsetLeft, maxX)) + 'px';
-                card.style.top = Math.max(0, Math.min(card.offsetTop, maxY)) + 'px';
-            }
-        });
-    });
-
-    console.log('[GeoFS-V3.9_Core-Library] Universal flight helpers and SafeInit system active.');
+    console.log("[GeoFS-V3.9_Core-Library] Core foundations loaded and ready.");
 })();
