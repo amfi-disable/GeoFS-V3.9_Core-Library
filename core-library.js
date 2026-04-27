@@ -38,19 +38,19 @@
             const style = document.createElement('style');
             style.id = 'hudModularStyles';
             style.textContent = `
-                .unified-tabs { display: flex; width: 100%; gap: 2px; margin-bottom: 5px; }
-                .unified-tab { flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 10px; padding: 5px 2px; cursor: pointer; transition: all 0.2s; font-family: sans-serif; font-weight: bold; text-transform: uppercase; border-radius: 4px; }
-                .unified-tab:hover { background: rgba(255,255,255,0.2); }
-                .unified-tab.active { background: rgba(100,200,255,0.3); border-color: #64c8ff; color: #64c8ff; }
+                .unified-tabs { display: grid; width: 100%; gap: 2px; margin-bottom: 5px; }
+                .unified-tab { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.85); border-radius: 4px; font-size: 8px; padding: 4px 2px; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+                .unified-tab:hover { background: rgba(255,255,255,0.15); border-color: rgba(100,200,255,0.3); }
+                .unified-tab.active { background: rgba(100,200,255,0.25); border-color: #64c8ff; color: #64c8ff; box-shadow: 0 0 10px rgba(100,200,255,0.2); }
                 .unified-content { display: none; }
                 .unified-content.active { display: block; }
                 .unified-content.unified-grid.active { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; }
                 #flightDataDisplay.hud-minimized { display: none !important; }
                 .hud-cell { display: flex; flex-direction: column; }
-                .hud-label { font-size: 9px; color: rgba(255,255,255,0.5); text-transform: uppercase; }
-                .hud-value { font-size: 14px; font-weight: bold; color: #fff; }
+                .hud-label { font-size: 9px; color: #64c8ff; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
+                .hud-value { font-size: 14px; font-weight: bold; color: #fff; font-family: 'Roboto Mono', monospace; }
                 .hud-value.highlight { color: #64c8ff; }
-                .hud-section-header { font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 2px; }
+                .hud-section-header { font-size: 9px; font-weight: 800; color: rgba(100,200,255,0.7); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 10px; border-bottom: 1px solid rgba(100,200,255,0.05); padding-bottom: 2px; }
                 .hud-section-header.full-width { grid-column: 1 / -1; }
             `;
             document.head.appendChild(style);
@@ -88,10 +88,32 @@
             btn.id = 'hudMinimizeBtn';
             btn.innerHTML = '▣';
             btn.title = 'Toggle Info Display';
-            btn.style.cssText = "position: fixed; z-index: 10001; background: rgba(0,0,0,0.5); color: #fff; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; backdrop-filter: blur(5px);";
-            btn.style.left = '10px'; 
+            // Styling the button as a sleek square per user request
+            btn.style.cssText = `
+                position: fixed; 
+                z-index: 100002; 
+                width: 32px; 
+                height: 32px; 
+                background: linear-gradient(145deg, rgba(20,35,55,0.9), rgba(10,18,30,0.8));
+                border: 1px solid rgba(100,200,255,0.25);
+                border-radius: 6px;
+                color: rgba(100,200,255,0.8);
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                cursor: pointer; 
+                backdrop-filter: blur(8px);
+                box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+                font-size: 18px;
+                transition: all 0.2s ease;
+            `;
+            btn.style.left = '15px'; 
             btn.style.top = '50%'; 
             btn.style.transform = 'translateY(-50%)';
+            
+            btn.onmouseover = () => { btn.style.borderColor = 'rgba(100,200,255,0.6)'; btn.style.color = '#fff'; };
+            btn.onmouseout = () => { btn.style.borderColor = 'rgba(100,200,255,0.25)'; btn.style.color = 'rgba(100,200,255,0.8)'; };
+
             btn.onclick = () => {
                 globalThis.hudProMinimized = !globalThis.hudProMinimized;
                 document.getElementById('flightDataDisplay')?.classList.toggle('hud-minimized', globalThis.hudProMinimized);
@@ -99,7 +121,7 @@
             };
             document.body.appendChild(btn);
             if (window.initAddonDraggable) window.initAddonDraggable(btn, 'geofs-addonpack-hud-icon-pos');
-            console.log("[HUD Shared] Minimize button created.");
+            console.log("[HUD Shared] Centralized square minimize button created.");
         }
 
         // 4. Ensure Switch Logic exists
@@ -143,6 +165,17 @@
         }
     };
 
+    window.updateHUDTabLayout = function() {
+        const container = document.getElementById('hud-unified-tabs');
+        if (!container) return;
+        const tabs = container.querySelectorAll('.unified-tab');
+        if (tabs.length === 0) return;
+        
+        container.style.display = 'grid';
+        container.style.gridTemplateColumns = `repeat(${tabs.length}, 1fr)`;
+        console.log(`[HUD Shared] Layout updated: ${tabs.length} tabs scaling to grid.`);
+    };
+
     window.registerHUDTab = function(tabId, label, contentHTML, isGrid) {
         console.log(`[HUD Shared] Attempting to register tab: ${tabId}`);
         window.ensureSharedHUD();
@@ -164,6 +197,7 @@
             btn.onclick = () => window.switchHUDProTab(tabId);
             tabsContainer.appendChild(btn);
             console.log(`[HUD Shared] REGISTERED button for: ${tabId}`);
+            window.updateHUDTabLayout();
         }
 
         // Register Content
