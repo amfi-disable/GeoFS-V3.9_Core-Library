@@ -120,6 +120,8 @@
 // @match               https://www.geo-fs.com/geofs.php*
 // @grant               none
 // @license             MIT
+// @downloadURL https://update.greasyfork.org/scripts/581510/GeoFS-V39_Core-Library.user.js
+// @updateURL https://update.greasyfork.org/scripts/581510/GeoFS-V39_Core-Library.meta.js
 // ==/UserScript==
 
 (function() {
